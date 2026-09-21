@@ -119,6 +119,9 @@
     "actions": [
       "study",
       "learning_count"
-    ]
+    ],
+    "param_map": {
+      "course_list": "course_id"
+    }
   }
 }
