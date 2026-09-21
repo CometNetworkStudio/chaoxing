@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 
-from omnitask_sdk import action, serve
+from omnitask_sdk import action, listing, serve
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROGRESS_RE = re.compile(r"(\d{1,3})%")
@@ -101,6 +101,35 @@ def learning_count(ctx) -> None:
     """增加章节学习次数（-lc；目标次数 -tc）。"""
     target = str(ctx.params.get("target_count", "100"))
     _run(ctx, ["-lc", "-tc", target])
+
+
+@listing()
+def courses(ctx):
+    """发现：列出该账号的课程（供 OmniTask 选择）。"""
+    from api.base import Account, Chaoxing
+
+    username = ctx.credentials.get("username", "")
+    password = ctx.credentials.get("password", "")
+    if not username or not password:
+        raise RuntimeError("缺少账号密码凭据")
+    chaoxing = Chaoxing(account=Account(username, password))
+    state = chaoxing.login()
+    if not state.get("status"):
+        raise RuntimeError(state.get("msg", "登录失败"))
+    items = []
+    for course in chaoxing.get_course_list():
+        cid = str(course.get("courseId") or "")
+        items.append(
+            {
+                "key": cid,
+                "fields": {
+                    "course_id": cid,
+                    "clazz_id": str(course.get("clazzId") or ""),
+                    "title": str(course.get("title") or ""),
+                },
+            }
+        )
+    return items
 
 
 if __name__ == "__main__":
