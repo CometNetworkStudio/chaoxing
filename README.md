@@ -156,3 +156,59 @@ python main.py -a ask  # 使用询问模式
 - 本代码遵循 [GPL-3.0 License](https://github.com/Samueli924/chaoxing/blob/main/LICENSE) 协议，允许**开源/免费使用和引用/修改/衍生代码的开源/免费使用**，不允许**修改和衍生的代码作为闭源的商业软件发布和销售**，禁止**使用本代码盈利**，以此代码为基础的程序**必须**同样遵守 [GPL-3.0 License](https://github.com/Samueli924/chaoxing/blob/main/LICENSE) 协议
 - 本代码仅用于**学习讨论**，禁止**用于盈利**
 - 他人或组织使用本代码进行的任何**违法行为**与本人无关
+
+---
+
+# OmniTask 接入说明（本 fork 新增）
+
+本 fork 由 **CometNetworkStudio** 维护，目标是让本项目作为**脚本插件**接入 [OmniTask](https://github.com/CometNetworkStudio/OmniTask) 平台（学习通/超星平台）。
+
+## 本次改动
+
+| 文件 | 改动 |
+|------|------|
+| `omnitask_entry.py` | **新增**：OmniTask 适配器。读取 stdio JSON 请求，生成临时 `config.ini`，以子进程调用 `main.py`，把日志/进度转为 OmniTask 事件 |
+| `script.json` | **新增**：OmniTask 脚本 manifest（平台 id、动作、参数、凭据 schema） |
+| `requirements.txt` | **追加** `omnitask-sdk` 依赖（从 OmniTask 主仓库子目录安装） |
+| `README.md` | 追加本说明 |
+
+> 未修改本项目任何原有逻辑代码。
+
+## 许可与边界（重要）
+
+- 本仓库整体仍为 **GPL-3.0**（沿用上游），上游“禁止盈利/闭源商用”等声明**继续有效**。
+- OmniTask 主仓库与 `omnitask_sdk` 为 **MIT**；两者仅通过**进程边界**协作（OmniTask Host 以子进程运行 `omnitask_entry.py`），本仓库代码**不并入** OmniTask 的 MIT 代码库。
+- 本适配器文件位于本（GPL）仓库内，同样遵循 GPL-3.0。
+
+## 在 OmniTask 中使用
+
+1. 管理员在 OmniTask「脚本」页安装本仓库（可填加速源）。
+2. 新建任务时选择平台「超星学习通」：
+   - 凭据：`username` 手机号 / `password` 密码
+   - 动作：`study`（刷课）/ `learning_count`（增加章节学习次数）
+3. 参数：
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `course_list` | 空=全部 | 课程 ID，逗号分隔；为空时适配器传 `all`，避免交互式输入 |
+| `speed` | 1 | 视频倍速（1–2） |
+| `jobs` | 4 | 并发章节数 |
+| `notopen_action` | retry | 关闭任务点处理：`retry` / `continue` |
+| `target_count` | 100 | `learning_count` 的目标次数 |
+| `tiku_provider` / `tiku_token` / `tiku_submit` | 空 | 可选题库配置 |
+
+## 运行机制
+
+```
+OmniTask Host ──stdio JSON──▶ omnitask_entry.py ──子进程──▶ main.py -c <临时config.ini>
+                                                    （stderr 日志/进度 → 适配器 → OmniTask 事件）
+```
+
+- 临时 `config.ini` 权限 0600、用后删除；账号密码**不出现在命令行参数**中。
+- 进度：适配器把输出里的 `NN%` 解析为进度；子进程退出码非 0 视为失败。
+
+## 已知限制 / 未验证
+
+- 本项目建议 **Python 3.13+**；OmniTask Host 的解释器版本需满足要求。
+- 依赖较重（`ddddocr` 等含原生库），自动安装耗时较长。
+- 本接入**仅完成协议层适配**，尚未在真实账号上实机联调（无可用账号）。
